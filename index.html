@@ -1379,7 +1379,29 @@ function buildDocumentPreview(){
   `;
   document.getElementById('doc-content').innerHTML = html;
 }
+// =====================================================================
+// ENVIO DO PDF PARA O GOOGLE DRIVE (via Google Apps Script)
+// =====================================================================
+// Cole aqui o link do seu Apps Script publicado (termina em /exec)
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzXFPW_tdiEnv6ltMXU1DIvGks4GQkoBgTdPyJYdVwbQcS7YwMXqra3t_rSE8qyeUgdLg/exec';
 
+async function enviarPdfParaDrive(pdfBase64, nomeArquivo){
+  if(!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.includes('COLE_AQUI')){
+    console.warn('GOOGLE_SCRIPT_URL não configurado — PDF não foi enviado ao Drive.');
+    return;
+  }
+  try{
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors', // necessário para evitar bloqueio de CORS do Apps Script
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ pdfBase64, fileName: nomeArquivo })
+    });
+  } catch(err){
+    console.error('Falha ao enviar PDF para o Drive:', err);
+    // não interrompe o fluxo do usuário — o PDF já foi baixado normalmente
+  }
+}
 // =====================================================================
 // GERACAO DO PDF (jsPDF + html2canvas)
 // =====================================================================
@@ -1425,6 +1447,11 @@ async function gerarPDF(){
     const dataIso = document.getElementById('inp-data').value;
     const dataFormatada = dataIso ? dataIso.split('-').reverse().join('-') : 'SEM_DATA';
     const nomeArquivo = `Vistoria_Estoque_${tecnico}_${dataFormatada}.pdf`;
+
+    const pdfBase64 = pdf.output('datauristring').split(',')[1];
+    enviarPdfParaDrive(pdfBase64, nomeArquivo); // dispara em paralelo, não trava o download
+
+    pdf.save(nomeArquivo);
 
     pdf.save(nomeArquivo);
   } catch(err){
