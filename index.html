@@ -175,13 +175,11 @@
   .alerta ul{margin:6px 0 0 18px;padding:0;}
 
   /* ---------- DOCUMENTO (preview / pdf) ---------- */
-  #doc-scroll{overflow:hidden;background:#e9e9e6;padding:20px;border-radius:10px;}
-  #doc-page-scaler{width:100%;overflow:hidden;}
+  #doc-scroll{overflow-x:auto;background:#e9e9e6;padding:20px;border-radius:10px;}
   #doc-page{
     width:794px;min-height:1123px;background:#ffffff;margin:0 auto;position:relative;
     font-family:Arial,Helvetica,sans-serif;color:#111;
     display:flex;flex-direction:column;
-    transform-origin:top left;
   }
   #doc-page .doc-er-img{width:100%;display:block;flex:0 0 auto;}
   #doc-page .doc-footer-img{flex:0 0 auto;}
@@ -393,15 +391,13 @@
     <div class="preview-note">Pré-visualização — os campos não preenchidos permanecem em branco no documento final.</div>
 
     <div id="doc-scroll">
-      <div id="doc-page-scaler">
-        <div id="doc-page">
-          <img class="doc-header-img" id="doc-header-img" alt="DTEL Telecom">
-          <div class="doc-body">
-            <img class="doc-watermark" id="doc-watermark-img" alt="">
-            <div class="doc-content" id="doc-content"><!-- gerado via JS --></div>
-          </div>
-          <img class="doc-footer-img" id="doc-footer-img" alt="">
+      <div id="doc-page">
+        <img class="doc-header-img" id="doc-header-img" alt="DTEL Telecom">
+        <div class="doc-body">
+          <img class="doc-watermark" id="doc-watermark-img" alt="">
+          <div class="doc-content" id="doc-content"><!-- gerado via JS --></div>
         </div>
+        <img class="doc-footer-img" id="doc-footer-img" alt="">
       </div>
     </div>
 
@@ -1382,20 +1378,7 @@ function buildDocumentPreview(){
     </div>
   `;
   document.getElementById('doc-content').innerHTML = html;
-  ajustarEscalaPreview();
 }
-
-function ajustarEscalaPreview(){
-  const scaler = document.getElementById('doc-page-scaler');
-  const page = document.getElementById('doc-page');
-  if(!scaler || !page) return;
-  const larguraNatural = 794;
-  const larguraDisponivel = scaler.clientWidth;
-  const escala = Math.min(1, larguraDisponivel / larguraNatural);
-  page.style.transform = `scale(${escala})`;
-  scaler.style.height = (page.offsetHeight * escala) + 'px';
-}
-window.addEventListener('resize', ajustarEscalaPreview);
 // =====================================================================
 // ENVIO DO PDF PARA O GOOGLE DRIVE (via Google Apps Script)
 // =====================================================================
@@ -1433,10 +1416,7 @@ async function gerarPDF(){
 
   try{
     const page = document.getElementById('doc-page');
-    const scalerPrevTransform = page.style.transform;
-    page.style.transform = 'none'; // captura sempre em tamanho real, sem o zoom da pré-visualização mobile
     const canvas = await html2canvas(page, {scale:2, useCORS:true, backgroundColor:'#ffffff'});
-    page.style.transform = scalerPrevTransform; // restaura a escala da pré-visualização
 
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p','mm','a4');
@@ -1469,11 +1449,7 @@ async function gerarPDF(){
     const nomeArquivo = `Vistoria_Estoque_${tecnico}_${dataFormatada}.pdf`;
 
     const pdfBase64 = pdf.output('datauristring').split(',')[1];
-    // Espera o envio ao Drive terminar antes de salvar/abrir o PDF.
-    // No iOS, pdf.save() costuma abrir uma nova aba, o que pode cancelar
-    // uma requisição de rede ainda em andamento — por isso não seguimos
-    // em paralelo aqui.
-    await enviarPdfParaDrive(pdfBase64, nomeArquivo);
+    enviarPdfParaDrive(pdfBase64, nomeArquivo); // dispara em paralelo, não trava o download
 
     pdf.save(nomeArquivo);
 
